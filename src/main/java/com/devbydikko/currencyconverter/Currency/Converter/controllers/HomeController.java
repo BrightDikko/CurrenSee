@@ -1,9 +1,14 @@
 package com.devbydikko.currencyconverter.Currency.Converter.controllers;
 
 import com.devbydikko.currencyconverter.Currency.Converter.services.ConversionService;
+import com.devbydikko.currencyconverter.Currency.Converter.services.ExchangeRateResponse;
+import com.devbydikko.currencyconverter.Currency.Converter.services.ExchangeRateServiceImpl;
+import com.devbydikko.currencyconverter.Currency.Converter.services.TestLocalEndpointService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,18 +19,21 @@ import java.util.Map;
  */
 @RestController
 public class HomeController {
-
-    // An instance of ConversionService for performing the currency conversion
     private final ConversionService conversionService;
+    private final TestLocalEndpointService testLocalEndpointService;
+    private final ExchangeRateServiceImpl exchangeRateServiceImpl;
 
     /**
      * Constructor for HomeController. Has Autowired annotation which allows for automatic dependency injection.
      *
      * @param conversionService a service for converting currencies.
      */
+
     @Autowired
-    public HomeController(ConversionService conversionService) {
+    public HomeController(ConversionService conversionService, TestLocalEndpointService testLocalEndpointService, ExchangeRateServiceImpl exchangeRateServiceImpl) {
         this.conversionService = conversionService;
+        this.testLocalEndpointService = testLocalEndpointService;
+        this.exchangeRateServiceImpl = exchangeRateServiceImpl;
     }
 
     /**
@@ -42,22 +50,38 @@ public class HomeController {
         String to = allParams.get("to");
         String amount = allParams.get("amount");
 
-        /*
-        // System.out.println("\nAll request parameters: \n" +
-        //        "from = " + from + ",\n" +
-        //        "to = " + to + ",\n" +
-        //        "amount = " + amount + "\n");
-        */
-
-        String result = conversionService.convertCurrency(from, to, amount);
+        String result = conversionService.convertCurrency(from.toUpperCase(), to.toUpperCase(), amount);
 
         Map<String, String> response = new HashMap<>();
-        response.put("from", from);
-        response.put("to", to);
+        response.put("from", from.toUpperCase());
+        response.put("to", to.toUpperCase());
         response.put("amount", amount);
         response.put("result", result);
 
         return response;
 
+    }
+
+    @GetMapping("/currency-converter/test")
+    public String convertUsingExternalApi() throws IOException, InterruptedException {
+
+        testLocalEndpointService.testLocalEndpoint();
+
+        return "Test ran successfully. See build console for test output.";
+    }
+
+    @GetMapping("/currency-converter/today-rates")
+    public Mono<ExchangeRateResponse> getTodayExchangeRates() {
+        
+        Mono<ExchangeRateResponse> rates = exchangeRateServiceImpl.fetchExchangeRates();
+        
+        /*
+        // Get rates and print to build console
+
+        Mono<ExchangeRateResponse> rates = exchangeRateService.fetchExchangeRates()
+                .doOnNext(response -> System.out.println(">> Response = " + response));
+         */
+
+        return rates;
     }
 }
